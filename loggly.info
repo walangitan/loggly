@@ -1,0 +1,4 @@
+name = "Loggly"
+core = "7.x"
+package = "Rapid Development Group"
+description = Logs and records system events to syslog in JSON format for use by the Loggly log viewing service.

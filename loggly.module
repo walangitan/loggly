@@ -1,0 +1,79 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function loggly_menu() {
+  $items = array();
+
+  $items['admin/reports/loggly'] = array(
+    'title' => 'Loggly',
+    'page callback' => '_loggly_goto',
+    'access arguments' => array('access loggly'),
+  );
+  $items['admin/loggly'] = array(
+    'title' => 'Loggly Configuration',
+    'page callback' => 'drupal_get_form',
+    'access arguments' => array('access loggly'),
+    'page arguments' => array('loggly_admin_settings'),
+    'file' => 'includes/loggly.admin.inc',
+  );
+
+  return $items;
+}
+
+
+/**
+ * Implements hook_permission().
+ */
+function loggly_permission() {
+  return array(
+    'access loggly' => array(
+      'description' => t('View link to Loggly site.'),
+      'title' => t('Access Loggly logs'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_watchdog().
+ */
+function loggly_watchdog(array $log_entry) {
+  $log_init = &drupal_static(__FUNCTION__, FALSE);
+  $database = &drupal_static(__FUNCTION__, '');
+
+  if (!$log_init) {
+    $log_init = TRUE;
+    $default_facility = defined('LOG_LOCAL0') ? LOG_LOCAL0 : LOG_USER;
+    $connection_info = Database::getConnectionInfo('default');
+    $database = $connection_info['default']['database'];
+    openlog('drupal', LOG_NDELAY, $default_facility);
+  }
+
+  $json = drupal_json_encode(array(
+    'database'    => $database,
+    'base_url'    => $GLOBALS['base_url'],
+    'timestamp'   => $log_entry['timestamp'],
+    'type'        => $log_entry['type'],
+    'ip'          => $log_entry['ip'],
+    'request_uri' => $log_entry['request_uri'],
+    'referer'     => $log_entry['referer'],
+    'uid'         => $log_entry['user']->uid,
+    'username'    => isset($log_entry['user']->name) ? $log_entry['user']->name : 'Anonymous',
+    'link'        => preg_replace('/.*href="([^"]*)".*/', '$1', $log_entry['link']),
+    'message'     => strip_tags(!isset($log_entry['variables']) ? $log_entry['message'] : strtr($log_entry['message'], $log_entry['variables'])),
+  ));
+
+  syslog($log_entry['severity'], $json);
+}
+
+function _loggly_goto() {
+  $connection_info = Database::getConnectionInfo('default');
+  $database = $connection_info['default']['database'];
+
+  drupal_goto('https://'.variable_get('loggly_username').'.loggly.com/search', array(
+    'external' => TRUE,
+    'fragment' => 'from=-1h&until=now&terms=json.database%3A'. $database,
+  ));
+}
