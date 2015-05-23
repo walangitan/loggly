@@ -1,6 +1,10 @@
 <?php
 
 /**
+ * @file
+ */
+
+/**
  * Implements hook_menu().
  */
 function loggly_menu() {
@@ -68,12 +72,15 @@ function loggly_watchdog(array $log_entry) {
   syslog($log_entry['severity'], $json);
 }
 
+/**
+ *
+ */
 function _loggly_goto() {
   $connection_info = Database::getConnectionInfo('default');
   $database = $connection_info['default']['database'];
 
-  drupal_goto('https://'.variable_get('loggly_username').'.loggly.com/search', array(
+  drupal_goto('https://' . variable_get('loggly_username') . '.loggly.com/search', array(
     'external' => TRUE,
-    'fragment' => 'from=-1h&until=now&terms=json.database%3A'. $database,
+    'fragment' => 'from=-1h&until=now&terms=json.database%3A' . $database,
   ));
 }
